@@ -48,6 +48,29 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [totalImages, setTotalImages] = useState(0);
+  const [loaded, setLoaded] = useState(false);
+
+  // 启动时从 session storage 恢复数据
+  useEffect(() => {
+    chrome.storage?.session?.get(["qrResults", "qrTotalImages"], (data) => {
+      if (data?.qrResults?.length) {
+        setAllResults(data.qrResults);
+        setTotalImages(data.qrTotalImages || 0);
+        setScanState("done");
+      }
+      setLoaded(true);
+    });
+  }, []);
+
+  // 结果变更时持久化到 session storage
+  useEffect(() => {
+    if (!loaded) return;
+    if (allResults.length > 0) {
+      chrome.storage?.session?.set({ qrResults: allResults, qrTotalImages: totalImages });
+    } else {
+      chrome.storage?.session?.remove(["qrResults", "qrTotalImages"]);
+    }
+  }, [allResults, totalImages, loaded]);
 
   // Deduplicated results
   const dedupResults = useMemo(() => {
@@ -101,6 +124,14 @@ export default function App() {
     };
     chrome.runtime?.onMessage?.addListener(handler);
     return () => chrome.runtime?.onMessage?.removeListener(handler);
+  }, []);
+
+  const handleClear = useCallback(() => {
+    setAllResults([]);
+    setTotalImages(0);
+    setScanState("idle");
+    setFilter("");
+    setError(null);
   }, []);
 
   const handleScan = useCallback(async () => {
@@ -287,7 +318,7 @@ export default function App() {
 
   return (
     <div className="flex flex-col min-h-[320px] max-h-[580px]">
-      <Header scanState={scanState} onScan={handleScan} />
+      <Header scanState={scanState} onScan={handleScan} onClear={handleClear} hasResults={allResults.length > 0} />
 
       {scanState !== "idle" && (
         <StatusBar

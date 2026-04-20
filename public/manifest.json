@@ -4,7 +4,7 @@
   "description": "Scan all QR code images on the page, filter, copy, and export as CSV",
   "version": "1.0.0",
   "author": "overtrue (https://github.com/overtrue)",
-  "permissions": ["activeTab", "scripting"],
+  "permissions": ["activeTab", "scripting", "storage"],
   "action": {
     "default_popup": "popup/index.html",
     "default_icon": {
