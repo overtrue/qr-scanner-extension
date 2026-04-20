@@ -19,8 +19,9 @@ export function Header({ scanState, onScan, onClear, hasResults }: HeaderProps) 
       </div>
       <div className="flex items-center gap-1.5">
         {hasResults && !isScanning && (
-          <Button variant="ghost" size="icon" onClick={onClear} title="清空结果">
-            <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
+          <Button variant="outline" size="sm" onClick={onClear} className="h-8 text-xs gap-1 text-muted-foreground">
+            <Trash2 className="h-3 w-3" />
+            清空
           </Button>
         )}
         <Button size="sm" onClick={onScan} disabled={isScanning}>
