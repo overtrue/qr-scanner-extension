@@ -9,6 +9,8 @@ interface ToolbarProps {
   onFilterChange: (value: string) => void;
   dedup: boolean;
   onDedupChange: (value: boolean) => void;
+  collapse: boolean;
+  onCollapseChange: (value: boolean) => void;
   allSelected: boolean;
   indeterminate: boolean;
   onSelectAll: (checked: boolean) => void;
@@ -23,6 +25,8 @@ export function Toolbar({
   onFilterChange,
   dedup,
   onDedupChange,
+  collapse,
+  onCollapseChange,
   allSelected,
   indeterminate,
   onSelectAll,
@@ -64,6 +68,14 @@ export function Toolbar({
         <div className="flex items-center gap-1.5">
           <Switch checked={dedup} onCheckedChange={onDedupChange} />
           <span className="text-xs text-muted-foreground">去重</span>
+        </div>
+
+        <div className="h-4 w-px bg-border" />
+
+        {/* Collapse */}
+        <div className="flex items-center gap-1.5">
+          <Switch checked={collapse} onCheckedChange={onCollapseChange} />
+          <span className="text-xs text-muted-foreground">折叠</span>
         </div>
 
         <div className="flex-1" />

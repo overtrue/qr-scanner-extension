@@ -9,6 +9,7 @@ interface ResultItemProps {
   globalIndex: number;
   checked: boolean;
   onToggle: (index: number) => void;
+  collapse: boolean;
 }
 
 function isValidUrl(str: string): boolean {
@@ -20,7 +21,7 @@ function isValidUrl(str: string): boolean {
   }
 }
 
-export function ResultItem({ result, index, globalIndex, checked, onToggle }: ResultItemProps) {
+export function ResultItem({ result, index, globalIndex, checked, onToggle, collapse }: ResultItemProps) {
   const isUrl = isValidUrl(result.content);
 
   return (
@@ -28,26 +29,34 @@ export function ResultItem({ result, index, globalIndex, checked, onToggle }: Re
       <Checkbox
         checked={checked}
         onCheckedChange={() => onToggle(globalIndex)}
-        className="mt-0.5"
+        className="mt-0.5 shrink-0"
       />
 
-      <Badge variant="secondary" className="mt-0.5 min-w-[24px] justify-center text-[10px] font-mono">
+      <Badge variant="secondary" className="mt-0.5 min-w-[24px] shrink-0 justify-center text-[10px] font-mono">
         {index + 1}
       </Badge>
 
-      <div className="flex-1 min-w-0 space-y-1">
+      <div className="flex-1 min-w-0 overflow-hidden">
         {isUrl ? (
           <a
             href={result.content}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-xs text-primary hover:underline break-all inline-flex items-start gap-1"
+            className={`text-xs text-primary hover:underline inline-flex items-start gap-1 max-w-full ${
+              collapse ? "line-clamp-1 break-all" : "break-all"
+            }`}
+            title={result.content}
           >
-            {result.content}
+            <span className={collapse ? "truncate" : ""}>{result.content}</span>
             <ExternalLink className="h-3 w-3 mt-0.5 shrink-0" />
           </a>
         ) : (
-          <p className="text-xs break-all font-mono text-foreground leading-relaxed">
+          <p
+            className={`text-xs font-mono text-foreground leading-relaxed ${
+              collapse ? "line-clamp-1 break-all" : "break-all"
+            }`}
+            title={result.content}
+          >
             {result.content}
           </p>
         )}

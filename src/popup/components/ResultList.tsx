@@ -7,9 +7,10 @@ interface ResultListProps {
   dedupResults: QRResult[];   // full dedup results (for index mapping)
   selected: Set<number>;
   onToggleSelect: (index: number) => void;
+  collapse: boolean;
 }
 
-export function ResultList({ results, dedupResults, selected, onToggleSelect }: ResultListProps) {
+export function ResultList({ results, dedupResults, selected, onToggleSelect, collapse }: ResultListProps) {
   return (
     <ScrollArea className="flex-1 max-h-[340px]">
       {results.map((r, i) => {
@@ -23,6 +24,7 @@ export function ResultList({ results, dedupResults, selected, onToggleSelect }: 
             globalIndex={globalIndex}
             checked={selected.has(globalIndex)}
             onToggle={onToggleSelect}
+            collapse={collapse}
           />
         );
       })}

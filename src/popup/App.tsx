@@ -5,6 +5,11 @@ import { Toolbar } from "./components/Toolbar";
 import { ResultList } from "./components/ResultList";
 import { EmptyState } from "./components/EmptyState";
 
+declare global {
+  interface Window { jsQR?: any; }
+  const BarcodeDetector: any;
+}
+
 export interface QRResult {
   content: string;
   sourceUrl: string;
@@ -20,12 +25,25 @@ interface ScanProgress {
 
 type ScanState = "idle" | "scanning" | "done";
 
+/** 动态加载 jsQR 库到 popup 上下文 */
+async function loadJsQR(): Promise<any> {
+  if (window.jsQR) return window.jsQR;
+  return new Promise((resolve) => {
+    const script = document.createElement("script");
+    script.src = "../lib/jsQR.js";
+    script.onload = () => resolve((window as any).jsQR);
+    script.onerror = () => resolve(null);
+    document.head.appendChild(script);
+  });
+}
+
 export default function App() {
   const [scanState, setScanState] = useState<ScanState>("idle");
   const [progress, setProgress] = useState<ScanProgress>({ total: 0, scanned: 0, found: 0 });
   const [allResults, setAllResults] = useState<QRResult[]>([]);
   const [filter, setFilter] = useState("");
   const [dedup, setDedup] = useState(true);
+  const [collapse, setCollapse] = useState(true);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
@@ -99,10 +117,100 @@ export default function App() {
         setScanState("idle");
         return;
       }
+
+      // 如果当前页面是 data: URL 图片，直接在 popup 中解码
+      if (tab.url && tab.url.startsWith("data:image/")) {
+        await decodeDataUrl(tab.url);
+        return;
+      }
+
       await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["lib/jsQR.js"] });
       await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["content/scanner.js"] });
     } catch (e: any) {
       setError("无法扫描此页面: " + e.message);
+      setScanState("idle");
+    }
+  }, []);
+
+  /** 在 popup 中直接解码 data: URL 图片 */
+  const decodeDataUrl = useCallback(async (dataUrl: string) => {
+    setProgress({ total: 1, scanned: 0, found: 0 });
+
+    try {
+      // 加载图片
+      const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const el = new Image();
+        el.onload = () => resolve(el);
+        el.onerror = () => reject(new Error("图片加载失败"));
+        el.src = dataUrl;
+      });
+
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
+
+      const maxDim = 1024;
+      let w = img.width, h = img.height;
+      if (w > maxDim || h > maxDim) {
+        const s = maxDim / Math.max(w, h);
+        w = Math.round(w * s);
+        h = Math.round(h * s);
+      }
+      canvas.width = w;
+      canvas.height = h;
+      ctx.drawImage(img, 0, 0, w, h);
+
+      const results: QRResult[] = [];
+
+      // 策略1: BarcodeDetector
+      if (typeof BarcodeDetector !== "undefined") {
+        try {
+          const detector = new BarcodeDetector({ formats: ["qr_code"] });
+          const barcodes = await detector.detect(canvas);
+          for (const b of barcodes) {
+            if (b.rawValue) {
+              results.push({ content: b.rawValue, sourceUrl: dataUrl.substring(0, 100) + "...", sourceType: "data-url", pageUrl: dataUrl.substring(0, 100) + "..." });
+            }
+          }
+        } catch {}
+      }
+
+      // 策略2: jsQR（动态加载）
+      if (results.length === 0) {
+        const jsQR = await loadJsQR();
+        if (jsQR) {
+          const imageData = ctx.getImageData(0, 0, w, h);
+
+          // 原始图像
+          const code = jsQR(imageData.data, w, h, { inversionAttempts: "attemptBoth" });
+          if (code?.data) {
+            results.push({ content: code.data, sourceUrl: dataUrl.substring(0, 100) + "...", sourceType: "data-url", pageUrl: dataUrl.substring(0, 100) + "..." });
+          }
+
+          // 多阈值二值化
+          if (results.length === 0) {
+            for (const threshold of [140, 160, 180, 200]) {
+              const processed = new Uint8ClampedArray(imageData.data);
+              for (let i = 0; i < processed.length; i += 4) {
+                const gray = 0.299 * processed[i] + 0.587 * processed[i + 1] + 0.114 * processed[i + 2];
+                const bw = gray < threshold ? 0 : 255;
+                processed[i] = processed[i + 1] = processed[i + 2] = bw;
+              }
+              const c = jsQR(processed, w, h, { inversionAttempts: "attemptBoth" });
+              if (c?.data) {
+                results.push({ content: c.data, sourceUrl: dataUrl.substring(0, 100) + "...", sourceType: "data-url", pageUrl: dataUrl.substring(0, 100) + "..." });
+                break;
+              }
+            }
+          }
+        }
+      }
+
+      setProgress({ total: 1, scanned: 1, found: results.length });
+      setAllResults(results);
+      setTotalImages(1);
+      setScanState("done");
+    } catch (e: any) {
+      setError("解码失败: " + e.message);
       setScanState("idle");
     }
   }, []);
@@ -202,6 +310,8 @@ export default function App() {
             onFilterChange={setFilter}
             dedup={dedup}
             onDedupChange={setDedup}
+            collapse={collapse}
+            onCollapseChange={setCollapse}
             allSelected={allVisibleSelected}
             indeterminate={someVisibleSelected}
             onSelectAll={handleSelectAll}
@@ -215,6 +325,7 @@ export default function App() {
             dedupResults={dedupResults}
             selected={selected}
             onToggleSelect={handleToggleSelect}
+            collapse={collapse}
           />
         </>
       )}
