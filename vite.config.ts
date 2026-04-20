@@ -1,7 +1,11 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { resolve } from "path";
-import { copyFileSync, mkdirSync, existsSync, rmSync } from "fs";
+import { copyFileSync, mkdirSync, existsSync, rmSync, readFileSync, writeFileSync } from "fs";
+
+// Build for specific browser: 'chrome' or 'firefox'
+// Usage: npm run build -- --mode firefox
+const targetBrowser = process.env.TARGET_BROWSER || "chrome";
 
 export default defineConfig({
   plugins: [
@@ -17,6 +21,12 @@ export default defineConfig({
           resolve(libDir, "jsQR.js")
         );
 
+        // Copy browser polyfill to dist/lib/
+        copyFileSync(
+          resolve(__dirname, "src/lib/browser-polyfill.js"),
+          resolve(libDir, "browser-polyfill.js")
+        );
+
         // Move popup HTML to correct location
         const srcHtml = resolve(__dirname, "dist/src/popup/index.html");
         const destDir = resolve(__dirname, "dist/popup");
@@ -28,6 +38,25 @@ export default defineConfig({
         // Clean up leftover src/ directory
         const srcDir = resolve(__dirname, "dist/src");
         if (existsSync(srcDir)) rmSync(srcDir, { recursive: true });
+
+        // Adjust manifest background field per browser
+        const manifestPath = resolve(__dirname, "dist/manifest.json");
+        if (existsSync(manifestPath)) {
+          const manifest = JSON.parse(readFileSync(manifestPath, "utf-8"));
+          if (targetBrowser === "firefox") {
+            // Firefox MV3 prefers "scripts" array over "service_worker"
+            if (manifest.background?.service_worker) {
+              manifest.background.scripts = [manifest.background.service_worker];
+              delete manifest.background.service_worker;
+            }
+          } else {
+            // Chrome uses service_worker, remove scripts
+            if (manifest.background?.scripts) {
+              delete manifest.background.scripts;
+            }
+          }
+          writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
+        }
       },
     },
   ],
@@ -36,7 +65,7 @@ export default defineConfig({
       "@": resolve(__dirname, "src/popup"),
     },
   },
-  base: "/",
+  base: "./",
   experimental: {
     renderBuiltUrl(filename) {
       // Chrome extension needs relative paths from the popup/ directory

@@ -1,5 +1,15 @@
 // Content Script: 扫描页面中所有二维码图片
 // 使用三层解码策略：BarcodeDetector → jsQR 多阈值预处理 → html5-qrcode
+// Browser compatibility: ensure chrome.* API works in Firefox
+(function() {
+  if (typeof browser !== "undefined" && typeof chrome === "undefined") {
+    window.chrome = browser;
+    if (!chrome.storage.session) {
+      chrome.storage.session = chrome.storage.local;
+    }
+  }
+})();
+
 (async function scanPageQRCodes() {
   // 避免并发扫描（但允许上次完成后重新扫描）
   if (window.__qrScannerRunning) {

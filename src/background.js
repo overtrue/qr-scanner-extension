@@ -1,3 +1,8 @@
+// Browser compatibility: ensure chrome.* API works in Firefox
+if (typeof browser !== "undefined" && typeof chrome === "undefined") {
+  window.chrome = browser;
+}
+
 // Background service worker - 处理跨域图片获取
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === "FETCH_IMAGE") {
@@ -9,7 +14,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 async function fetchImageAsDataUrl(url) {
-  const response = await fetch(url, { mode: "cors" });
+  // Try CORS first; if CDN doesn't support it, fallback to no-cors
+  // (opaque response is fine — we only need the raw bytes as a data URL)
+  let response;
+  try {
+    response = await fetch(url, { mode: "cors" });
+  } catch {
+    response = await fetch(url, { mode: "no-cors" });
+  }
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}`);
   }
