@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "QR Code Scanner",
+  "description": "Scan all QR code images on the page, filter, copy, and export as CSV",
+  "version": "1.0.0",
+  "author": "overtrue (https://github.com/overtrue)",
+  "permissions": ["activeTab", "scripting"],
+  "action": {
+    "default_popup": "popup/index.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}
