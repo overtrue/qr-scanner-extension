@@ -94,8 +94,8 @@ export default function App() {
         setProgress(message.data);
       }
       if (message.type === "SCAN_COMPLETE") {
-        setAllResults(message.data.results);
-        setTotalImages(message.data.total);
+        setAllResults((prev) => [...prev, ...message.data.results]);
+        setTotalImages((prev) => prev + message.data.total);
         setScanState("done");
       }
     };
@@ -106,9 +106,7 @@ export default function App() {
   const handleScan = useCallback(async () => {
     setScanState("scanning");
     setError(null);
-    setAllResults([]);
     setProgress({ total: 0, scanned: 0, found: 0 });
-    setFilter("");
 
     try {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -206,8 +204,8 @@ export default function App() {
       }
 
       setProgress({ total: 1, scanned: 1, found: results.length });
-      setAllResults(results);
-      setTotalImages(1);
+      setAllResults((prev) => [...prev, ...results]);
+      setTotalImages((prev) => prev + 1);
       setScanState("done");
     } catch (e: any) {
       setError("解码失败: " + e.message);

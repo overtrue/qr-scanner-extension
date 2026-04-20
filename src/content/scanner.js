@@ -1,7 +1,7 @@
 // Content Script: 扫描页面中所有二维码图片
 // 使用三层解码策略：BarcodeDetector → jsQR 多阈值预处理 → html5-qrcode
 (async function scanPageQRCodes() {
-  // 避免重复注入
+  // 避免并发扫描（但允许上次完成后重新扫描）
   if (window.__qrScannerRunning) {
     return;
   }
