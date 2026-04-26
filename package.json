@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "build:firefox": "TARGET_BROWSER=firefox tsc && TARGET_BROWSER=firefox vite build",
     "preview": "vite preview"
   },
   "dependencies": {

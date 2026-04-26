@@ -6,7 +6,7 @@ import { ResultList } from "./components/ResultList";
 import { EmptyState } from "./components/EmptyState";
 
 declare global {
-  interface Window { jsQR?: any; }
+  interface Window { jsQR?: any; chrome: typeof chrome; }
   const BarcodeDetector: any;
 }
 
@@ -37,6 +37,11 @@ async function loadJsQR(): Promise<any> {
   });
 }
 
+/** 获取可用的 storage area — Firefox 不支持 chrome.storage.session */
+function getStorage(): chrome.storage.StorageArea | null {
+  return chrome.storage?.session || chrome.storage?.local;
+}
+
 export default function App() {
   const [scanState, setScanState] = useState<ScanState>("idle");
   const [progress, setProgress] = useState<ScanProgress>({ total: 0, scanned: 0, found: 0 });
@@ -52,7 +57,8 @@ export default function App() {
 
   // 启动时从 session storage 恢复数据
   useEffect(() => {
-    chrome.storage?.session?.get(["qrResults", "qrTotalImages"], (data) => {
+    const storage = getStorage();
+    storage?.get(["qrResults", "qrTotalImages"], (data: { [key: string]: any }) => {
       if (data?.qrResults?.length) {
         setAllResults(data.qrResults);
         setTotalImages(data.qrTotalImages || 0);
@@ -65,10 +71,11 @@ export default function App() {
   // 结果变更时持久化到 session storage
   useEffect(() => {
     if (!loaded) return;
+    const storage = getStorage();
     if (allResults.length > 0) {
-      chrome.storage?.session?.set({ qrResults: allResults, qrTotalImages: totalImages });
+      storage?.set({ qrResults: allResults, qrTotalImages: totalImages });
     } else {
-      chrome.storage?.session?.remove(["qrResults", "qrTotalImages"]);
+      storage?.remove(["qrResults", "qrTotalImages"]);
     }
   }, [allResults, totalImages, loaded]);
 
@@ -153,8 +160,20 @@ export default function App() {
         return;
       }
 
-      await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["lib/jsQR.js"] });
-      await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["content/scanner.js"] });
+      // Firefox resolves executeScript files relative to popup directory,
+      // Chrome resolves from extension root. Try ../ first (Firefox), fallback to root (Chrome).
+      const tabId = tab.id;
+      const tryInject = async (fileList: string[]): Promise<void> => {
+        for (const f of fileList) {
+          await chrome.scripting.executeScript({ target: { tabId }, files: [f] });
+        }
+      };
+
+      try {
+        await tryInject(["../lib/jsQR.js", "../content/scanner.js"]);
+      } catch {
+        await tryInject(["lib/jsQR.js", "content/scanner.js"]);
+      }
     } catch (e: any) {
       setError("无法扫描此页面: " + e.message);
       setScanState("idle");

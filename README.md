@@ -22,7 +22,7 @@
 - React 18 + TypeScript
 - Tailwind CSS + shadcn/ui
 - Vite 构建
-- Chrome Manifest V3
+- Chrome / Firefox Manifest V3
 - jsQR + BarcodeDetector API
 
 ## 安装
@@ -33,15 +33,27 @@
 git clone https://github.com/overtrue/qr-scanner-extension.git
 cd qr-scanner-extension
 npm install
+
+# Chrome 构建
 npm run build
+
+# Firefox 构建
+npm run build:firefox
 ```
 
-然后在 Chrome 中加载：
+#### Chrome 安装
 
 1. 打开 `chrome://extensions`
 2. 开启右上角「开发者模式」
 3. 点击「加载已解压的扩展程序」
 4. 选择项目的 `dist/` 目录
+
+#### Firefox 安装
+
+1. 打开 `about:debugging#/runtime/this-firefox`
+2. 点击「临时载入附加组件」
+3. 选择 `dist/` 目录下的任意文件（`manifest.json` 或 `background.js`）
+4. 扩展即加载，图标出现在工具栏
 
 ## 使用
 
@@ -60,6 +72,11 @@ npm run build
 4. 新结果自动追加合并，重复内容由去重开关过滤
 5. 全部扫完后，一次性复制或导出 CSV
 6. 点击「清空」按钮重置
+
+## 兼容性说明
+
+- **Chrome**: 使用 `chrome.storage.session` 存储扫描结果（关闭浏览器后清空）
+- **Firefox**: 回退使用 `chrome.storage.local`（Firefox 不支持 session storage），功能完全一致
 
 ## 项目结构
 
